@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var errControllerClosed = errors.New("gpiod1: controller is closed")
@@ -104,7 +105,52 @@ func (c *Controller) Read(offset uint32) (bool, error) {
 	return req.GetValue(offset)
 }
 
-// Release releases the request for a single GPIO offset, floating the line.
+// Float reconfigures a GPIO line to floating input (bias-disabled), handing
+// control back to the external circuit without releasing the kernel handle.
+// This is the correct way to de-assert a driven pin on hardware where
+// Release alone leaves the output register latched (e.g. Raspberry Pi 5 RP1).
+// The request remains alive so Close still cleans it up, and a subsequent
+// Drive call can reconfigure without a release/re-request cycle.
+func (c *Controller) Float(offset uint32) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return errControllerClosed
+	}
+
+	lr, ok := c.requests[offset]
+	if !ok {
+		return nil
+	}
+
+	if err := lr.req.Reconfigure(LineConfig{
+		Offsets:   []uint32{offset},
+		Direction: "input",
+		Bias:      "disabled",
+	}); err != nil {
+		return err
+	}
+	lr.direction = "input"
+	return nil
+}
+
+// Pulse drives a GPIO line to active for duration then floats it.
+// This is the correct pattern for toggling reset pins: it guarantees the
+// external pull resistor can de-assert the line after the pulse regardless
+// of what the hardware output register retains after a plain Release.
+func (c *Controller) Pulse(offset uint32, active bool, duration time.Duration) error {
+	if err := c.Drive(offset, active); err != nil {
+		return err
+	}
+	time.Sleep(duration)
+	return c.Float(offset)
+}
+
+// Release releases the kernel GPIO request for a single offset.
+// Note: on some hardware (e.g. Raspberry Pi 5 RP1) the output register is
+// latched after release, so the pin may not float. Use [Controller.Float]
+// first if you need the external circuit to take over the line state.
 // It is a no-op if the offset is not currently held.
 func (c *Controller) Release(offset uint32) error {
 	c.mu.Lock()

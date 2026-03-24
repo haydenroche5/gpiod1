@@ -351,7 +351,7 @@ func (r *Request) Reconfigure(cfg LineConfig) error {
 		Groups   []lineGroup
 		Defaults []int32
 	}{groups, defaults}
-	call := obj.Call(ifaceRequest+".Reconfigure", 0, lineConfig)
+	call := obj.Call(ifaceRequest+".ReconfigureLines", 0, lineConfig)
 	if call.Err != nil {
 		return fmt.Errorf("gpiod1: Reconfigure: %w", call.Err)
 	}
