@@ -31,8 +31,7 @@ type lineRequest struct {
 }
 
 // NewController connects to the D-Bus at address and returns a Controller for
-// the specified chip (default: "gpiochip0"). Any requests left over from a
-// previous run are released on startup.
+// the specified chip (default: "gpiochip0").
 //
 // Call [Controller.Close] when done (typically via defer).
 func NewController(address string, chipName ...string) (*Controller, error) {
@@ -45,8 +44,6 @@ func NewController(address string, chipName ...string) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	client.ReleaseExistingRequests()
 
 	chip, err := client.Chip(name)
 	if err != nil {
