@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/haydenroche5/gpiod1"
+	gpiod1 "github.com/haydenroche5/gpiod1/v2"
 )
 
 func main() {

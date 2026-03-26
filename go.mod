@@ -1,4 +1,4 @@
-module github.com/haydenroche5/gpiod1
+module github.com/haydenroche5/gpiod1/v2
 
 go 1.21
 
