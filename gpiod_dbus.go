@@ -4,7 +4,8 @@
 //
 // For most use cases, [NewController] is the simplest entry point:
 //
-//	ctrl, err := gpiod1.NewController("unix:abstract=/run/dbus-gpio")
+//	chip, err := gpiod1.FindChipByLabel("unix:abstract=/run/dbus-gpio", "pinctrl-rp1")
+//	ctrl, err := gpiod1.NewController("unix:abstract=/run/dbus-gpio", chip)
 //	defer ctrl.Close()
 //	ctrl.Drive(17, true)
 //	val, err := ctrl.Read(27)
@@ -98,6 +99,40 @@ func (c *Client) Chips() ([]string, error) {
 		}
 	}
 	return chips, nil
+}
+
+// ChipByLabel finds the chip whose Label property matches label
+// (e.g. "pinctrl-rp1") and returns a handle to it.  Returns an error if no
+// matching chip is found.
+func (c *Client) ChipByLabel(label string) (*Chip, error) {
+	names, err := c.Chips()
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range names {
+		chip, _ := c.Chip(name)
+		if l, err := chip.Label(); err == nil && l == label {
+			return chip, nil
+		}
+	}
+	return nil, fmt.Errorf("gpiod1: no chip with label %q found", label)
+}
+
+// FindChipByLabel connects to the D-Bus at address, finds the chip with the
+// given label (e.g. "pinctrl-rp1"), and returns its kernel name
+// (e.g. "gpiochip0" or "gpiochip4").  The connection is closed before
+// returning.
+func FindChipByLabel(address, label string) (string, error) {
+	client, err := Connect(address)
+	if err != nil {
+		return "", fmt.Errorf("gpiod1: FindChipByLabel: %w", err)
+	}
+	defer client.Close()
+	chip, err := client.ChipByLabel(label)
+	if err != nil {
+		return "", err
+	}
+	return chip.Name(), nil
 }
 
 // Chip returns a handle for the named GPIO chip (e.g. "gpiochip0").

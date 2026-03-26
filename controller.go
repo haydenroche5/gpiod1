@@ -31,21 +31,18 @@ type lineRequest struct {
 }
 
 // NewController connects to the D-Bus at address and returns a Controller for
-// the specified chip (default: "gpiochip0").
+// the named chip (e.g. "gpiochip0", "gpiochip4").  The chip name is required;
+// use [FindChipByLabel] to resolve a chip by label when the name is not known
+// ahead of time.
 //
 // Call [Controller.Close] when done (typically via defer).
-func NewController(address string, chipName ...string) (*Controller, error) {
-	name := "gpiochip0"
-	if len(chipName) > 0 && chipName[0] != "" {
-		name = chipName[0]
-	}
-
+func NewController(address, chipName string) (*Controller, error) {
 	client, err := Connect(address)
 	if err != nil {
 		return nil, err
 	}
 
-	chip, err := client.Chip(name)
+	chip, err := client.Chip(chipName)
 	if err != nil {
 		client.Close()
 		return nil, err
@@ -67,6 +64,10 @@ func NewController(address string, chipName ...string) (*Controller, error) {
 
 	return c, nil
 }
+
+// ChipName returns the kernel chip name this Controller is bound to
+// (e.g. "gpiochip4").
+func (c *Controller) ChipName() string { return c.chip.name }
 
 // Drive sets GPIO line offset high (active=true) or low (active=false).
 // The line is automatically configured as output on first use.
